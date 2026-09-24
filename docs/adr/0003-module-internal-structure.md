@@ -56,6 +56,7 @@ infrastructure ──▶ application ──▶ domain
 | `domain`은 Spring, JPA에 의존하지 않는다 | `LayerDependencyTests` |
 | `application`은 `infrastructure`를 모른다 | `LayerDependencyTests` |
 | `api`는 `domain`, `application`, `infrastructure`를 노출하지 않는다 | `LayerDependencyTests` |
+| `api`는 `api` 자신, `infrastructure/adapter`, `infrastructure/facade`에서만 참조한다 | `LayerDependencyTests` (P1 이후 추가) |
 
 ### 검증 규칙이 실제로 동작하는지 확인
 
@@ -73,6 +74,21 @@ Rule 'no classes that reside in a package '..domain..' should depend on classes 
 ['org.springframework..', 'jakarta.persistence..']' was violated (1 times):
 Class <com.beomsoo.shop.payment.domain.SpringInDomain> is annotated with <org.springframework.stereotype.Component> in (SpringInDomain.kt:0)
 ```
+
+### 추가한 규칙: 모듈 간 호출은 adapter와 facade에서만
+
+Modulith는 "다른 모듈의 `api`만 참조한다"까지만 검사한다. 그래서 order의 서비스가 `member.api.MemberFacade`를 직접 주입받아도 통과한다. 이러면 모듈을 떼어낼 때 서비스 코드까지 고쳐야 한다. 이를 막으려고 ArchUnit 규칙을 추가했다.
+
+규칙을 만들고 위반 코드(`order.application.service`에서 `MemberFacade`를 필드로 가진 클래스)를 넣어 확인했는데, 처음 쓴 `onlyBeAccessed()`는 **위반을 잡지 못했다.** `onlyBeAccessed()`는 메서드 호출이나 필드 접근 같은 "접근"만 보고, 필드 타입이나 생성자 파라미터로 선언만 한 "의존"은 보지 않는다. `onlyHaveDependentClassesThat()`으로 바꾼 뒤에야 잡혔다.
+
+```
+Rule 'classes that reside in a package 'com.beomsoo.shop.*.api..' should only have dependent classes that reside in any package
+['..api..', '..infrastructure.adapter..', '..infrastructure.facade..']' was violated (2 times):
+Constructor <...order.application.service.Violation.<init>(...member.api.MemberFacade)> has parameter of type <...MemberFacade>
+Field <...order.application.service.Violation.memberFacade> has type <...MemberFacade>
+```
+
+같은 위반 코드에 대해 `ModularityTests`는 통과했다. order는 `member :: api`에 의존해도 되기 때문이다. 두 테스트가 서로 다른 것을 지킨다.
 
 ## 결과
 

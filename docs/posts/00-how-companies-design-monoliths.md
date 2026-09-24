@@ -265,32 +265,40 @@ Spring Modulith를 만든 Oliver Drotbohm의 레포다. 모듈 내부를 레이�
 
 세 레포의 장점을 조합했다. 모듈 간 관계는 kgrzybek, 모듈 내부 레이어는 library, 포트와 어댑터는 buckpal에서 가져온다.
 
+아래는 order 모듈의 실제 구조다. 처음 그렸던 설계안에서 구현하며 바뀐 부분이 있는데, 그 과정은 #2에서 다룬다.
+
 ```
 order/                              ← Spring Modulith 모듈
-├── api/                            ← [공개] @NamedInterface
-│   ├── OrderFacade.kt              다른 모듈이 동기로 호출하는 유일한 입구
-│   ├── dto/                        공개 DTO (도메인 객체는 밖으로 내보내지 않는다)
-│   └── event/OrderCompleted.kt     통합 이벤트 (나중에 Kafka 메시지 스키마가 된다)
+├── api/                            ← [공개] @NamedInterface("api")
+│                                     (#4에서 추가) 다른 모듈용 파사드, 통합 이벤트
 ├── domain/                         [내부] 순수 Kotlin, Spring/JPA 의존 없음
 │   ├── Order.kt, OrderLine.kt      애그리거트
-│   ├── event/OrderPlaced.kt        도메인 이벤트 (내부용)
-│   └── OrderRepository.kt
+│   └── OrderRepository.kt          저장소 인터페이스
 ├── application/                    [내부]
-│   ├── port/in/                    PlaceOrderUseCase
-│   ├── port/out/                   ReserveStockPort, RequestPaymentPort
+│   ├── port/in/                    PlaceOrderUseCase, CancelOrderUseCase, GetOrderQuery
+│   ├── port/out/                   LoadOrdererPort, LoadProductPort, StockPort, OrderListPort
 │   └── service/                    유스케이스 구현, 트랜잭션 경계
 └── infrastructure/                 [내부]
     ├── web/                        인바운드 어댑터 (컨트롤러)
     ├── persistence/                JPA 엔티티와 매퍼 (order 테이블만 접근)
-    └── adapter/InventoryAdapter.kt ReserveStockPort 구현 → inventory.api 호출
+    └── adapter/                    아웃바운드 어댑터: 다른 모듈의 api 호출
+        ├── MemberAdapter.kt        LoadOrdererPort 구현 → member.api
+        ├── CatalogAdapter.kt       LoadProductPort 구현 → catalog.api
+        └── InventoryAdapter.kt     StockPort 구현 → inventory.api
 ```
+
+다른 모듈이 부르는 쪽(member, catalog, inventory)에는 `api/`에 파사드 인터페이스가 있고, 그 구현은 `infrastructure/facade/`에 있다. 다른 모듈도 웹 클라이언트처럼 이 모듈을 사용하는 쪽이라서, 파사드 구현은 컨트롤러와 같은 인바운드 어댑터로 본다.
 
 규칙은 네 가지다. 전부 테스트로 강제한다.
 
-1. `domain`은 아무것도 의존하지 않는다.
-2. `application`은 `domain`만 의존한다.
-3. 다른 모듈은 `api` 패키지만 참조할 수 있다. 나머지는 Modulith가 내부 패키지로 취급한다.
-4. 모듈 간 동기 호출은 `infrastructure/adapter` 한 곳에서만 일어난다.
+| 규칙 | 검사하는 테스트 |
+|---|---|
+| 1. `domain`은 `application`과 `infrastructure`를 모르고, Spring과 JPA에 의존하지 않는다 | `LayerDependencyTests` (ArchUnit) |
+| 2. `application`은 `infrastructure`를 모른다 | `LayerDependencyTests` |
+| 3. 다른 모듈은 `api` 패키지만 참조할 수 있고, 선언한 모듈에만 의존할 수 있다 | `ModularityTests` (Spring Modulith) |
+| 4. `api`는 `infrastructure/adapter`(다른 모듈 호출)와 `infrastructure/facade`(자기 api 구현)에서만 참조한다 | `LayerDependencyTests` |
+
+`domain`과 `application`이 전혀 의존하지 않는 건 아니다. 모든 모듈이 함께 쓰는 공유 커널(`shared`)의 값 객체(`Money` 등)에는 의존한다. `application`은 트랜잭션 때문에 Spring에도 의존한다.
 
 마지막 규칙이 이 시리즈의 핵심이다. `order`가 `inventory`를 아는 곳은 `InventoryAdapter` **한 곳뿐**이고, 그마저도 `inventory.api`만 안다. MSA로 전환하는 날에는 이 어댑터 하나만 HTTP 클라이언트로 갈아끼우면 된다. `PlaceOrderUseCase`와 `Order` 애그리거트는 한 줄도 바뀌지 않아야 한다.
 

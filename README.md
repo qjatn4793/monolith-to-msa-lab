@@ -75,7 +75,7 @@ monolith-to-msa-lab/
 모듈 경계와 레이어 규칙은 테스트로 강제한다.
 
 - `ModularityTests`: 모듈 간 의존 방향, 공개 계약(`api`) 외 참조 금지
-- `LayerDependencyTests`: 모듈 안쪽 레이어의 의존 방향, 도메인의 순수성
+- `LayerDependencyTests`: 모듈 안쪽 레이어의 의존 방향, 도메인의 순수성, 모듈 간 호출은 `infrastructure/adapter`와 `facade`에서만
 
 ## API
 
