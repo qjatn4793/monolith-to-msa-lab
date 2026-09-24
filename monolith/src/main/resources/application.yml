@@ -1,0 +1,23 @@
+spring:
+  application:
+    name: monolith
+  datasource:
+    url: jdbc:mysql://localhost:3306/shop
+    username: shop
+    password: shop
+  jpa:
+    # 트랜잭션이 끝난 뒤 뷰 렌더링까지 DB 커넥션을 붙잡지 않도록 끈다.
+    open-in-view: false
+    hibernate:
+      # 스키마는 Flyway만 바꾼다. Hibernate는 엔티티와 스키마가 맞는지 검증만 한다.
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, modulith
