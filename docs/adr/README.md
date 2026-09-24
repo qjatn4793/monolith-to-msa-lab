@@ -11,6 +11,10 @@
 | [0004](0004-separate-domain-and-jpa-model.md) | 도메인 모델과 JPA 엔티티를 분리한다 | 승인 | P0 |
 | [0005](0005-inter-module-communication.md) | 모듈 간 통신은 공개 API와 이벤트로만 한다 | 승인 | P0 |
 | [0006](0006-external-calls-outside-transaction.md) | 외부 시스템 호출은 DB 트랜잭션 밖에서 한다 | 제안 | P2에서 확정 |
+| [0007](0007-application-generated-uuid-v7.md) | ID는 애플리케이션이 UUID v7로 만든다 | 승인 | P1 |
+| [0008](0008-shared-kernel.md) | 공유 커널(shared)은 최소한으로 둔다 | 승인 | P1 |
+| [0009](0009-table-ownership.md) | 테이블은 모듈이 소유하고, 경계를 넘는 FK와 JOIN은 쓰지 않는다 | 승인 | P1 |
+| [0010](0010-cross-module-failures-as-results.md) | 모듈 간 호출의 예상된 실패는 결과값으로 돌려준다 | 승인 | P1 |
 
 ## 템플릿
 

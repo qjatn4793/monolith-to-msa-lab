@@ -15,6 +15,9 @@ spring:
       hibernate:
         jdbc:
           time_zone: UTC
+        # 여러 행을 UPDATE 할 때 PK 순서로 정렬한다.
+        # 두 트랜잭션이 같은 재고 행들을 서로 다른 순서로 갱신하다 교착 상태에 빠지는 것을 막는다.
+        order_updates: true
 
 management:
   endpoints:

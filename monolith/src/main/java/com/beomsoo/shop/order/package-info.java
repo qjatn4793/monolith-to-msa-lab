@@ -3,7 +3,7 @@
  */
 @ApplicationModule(
         displayName = "Order",
-        allowedDependencies = {"member :: api", "catalog :: api", "inventory :: api", "payment :: api"}
+        allowedDependencies = {"shared", "member :: api", "catalog :: api", "inventory :: api", "payment :: api"}
 )
 package com.beomsoo.shop.order;
 

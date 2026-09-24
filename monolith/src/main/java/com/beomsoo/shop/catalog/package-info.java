@@ -3,7 +3,7 @@
  */
 @ApplicationModule(
         displayName = "Catalog",
-        allowedDependencies = {}
+        allowedDependencies = {"shared"}
 )
 package com.beomsoo.shop.catalog;
 

@@ -3,7 +3,7 @@
  */
 @ApplicationModule(
         displayName = "Notification",
-        allowedDependencies = {"order :: api", "member :: api"}
+        allowedDependencies = {"shared", "order :: api", "member :: api"}
 )
 package com.beomsoo.shop.notification;
 

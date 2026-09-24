@@ -10,7 +10,7 @@
 | 단계 | 내용 | 상태 | 글 |
 |---|---|---|---|
 | P0 | 리서치, 설계 결정(ADR), 프로젝트 뼈대, 모듈 경계 검증 | ✅ | [#0 초안](docs/posts/00-how-companies-design-monoliths.md) |
-| P1 | 도메인 모델과 헥사고날 구현 (member, catalog, inventory, order) | | |
+| P1 | 도메인 모델과 헥사고날 구현 (member, catalog, inventory, order) | ✅ | [코드 따라가기](docs/guides/p1-code-walkthrough.md) |
 | P2 | 도메인 이벤트, 결제와 알림, 모듈 간 협력 | | |
 | P3 | 운영 준비 (보안, 관측성, CI/CD) | | |
 | P4 | 성능 기준선과 튜닝 | | |
@@ -41,7 +41,8 @@ monolith-to-msa-lab/
 ├── monolith/                          모듈러 모놀리식
 │   └── src/main/
 │       ├── java/com/beomsoo/shop/     모듈 선언 (package-info.java)
-│       └── kotlin/com/beomsoo/shop/   모듈별 코드 (P1부터 채워진다)
+│       └── kotlin/com/beomsoo/shop/
+│           ├── shared/                공유 커널 (Money, 에러 응답, ID 생성)
 │           ├── member/                회원
 │           ├── catalog/               상품 정보
 │           ├── inventory/             재고
@@ -50,6 +51,7 @@ monolith-to-msa-lab/
 │           └── notification/          알림
 ├── docs/
 │   ├── adr/                           설계 결정 기록
+│   ├── guides/                        코드 따라가기 가이드
 │   └── posts/                         블로그 초안
 └── docker-compose.yml
 ```
@@ -61,13 +63,37 @@ monolith-to-msa-lab/
 ├── api/             [공개] 다른 모듈이 참조할 수 있는 유일한 패키지
 ├── domain/          [내부] 순수 Kotlin 도메인 모델
 ├── application/     [내부] 유스케이스, 포트
-└── infrastructure/  [내부] 어댑터 (web, persistence, adapter)
+└── infrastructure/  [내부] 어댑터 (web, facade, persistence, adapter)
 ```
 
 모듈 경계와 레이어 규칙은 테스트로 강제한다.
 
 - `ModularityTests`: 모듈 간 의존 방향, 공개 계약(`api`) 외 참조 금지
 - `LayerDependencyTests`: 모듈 안쪽 레이어의 의존 방향, 도메인의 순수성
+
+## API
+
+| 모듈 | 메서드 | 경로 | 설명 |
+|---|---|---|---|
+| member | POST | `/members` | 가입 |
+| | GET | `/members/{id}` | 조회 |
+| | PATCH | `/members/{id}` | 이름 변경 |
+| | POST | `/members/{id}/withdraw` | 탈퇴 |
+| catalog | POST | `/products` | 상품 등록 |
+| | GET | `/products/{id}`, `/products?page=&size=` | 조회, 목록 |
+| | PATCH | `/products/{id}/price` | 가격 변경 |
+| | POST | `/products/{id}/stop-selling`, `/resume-selling` | 판매 중지, 재개 |
+| inventory | POST | `/stocks/{productId}/receive` | 입고 |
+| | GET | `/stocks/{productId}` | 재고 조회 |
+| order | POST | `/orders` | 주문 (주문자 확인 → 상품 스냅샷 → 재고 예약) |
+| | GET | `/orders/{id}`, `/orders?memberId=&page=&size=` | 조회, 회원별 목록 |
+| | POST | `/orders/{id}/cancel` | 취소 (재고 예약 해제) |
+
+에러는 모두 [RFC 9457 ProblemDetail](https://www.rfc-editor.org/rfc/rfc9457) 형식이고, `code` 필드로 원인을 구분한다.
+
+```json
+{ "status": 409, "code": "OUT_OF_STOCK", "detail": "재고가 부족한 상품이 있습니다: [...]", ... }
+```
 
 ## 실행 방법
 

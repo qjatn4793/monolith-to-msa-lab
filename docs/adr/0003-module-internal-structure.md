@@ -25,11 +25,21 @@
 │   └── service/     유스케이스 구현
 └── infrastructure/  [내부] 어댑터
     ├── web/         인바운드: 컨트롤러
+    ├── facade/      인바운드: 자기 모듈 api 인터페이스의 구현 (P1에서 추가)
     ├── persistence/ 아웃바운드: JPA 엔티티, 매퍼, 저장소 구현
     └── adapter/     아웃바운드: 다른 모듈의 api 호출, 외부 시스템 클라이언트
 ```
 
 컨트롤러는 인바운드 어댑터로 보고 `infrastructure/web`에 둔다.
+
+`api`에는 인터페이스(`MemberFacade`)만 두고, 구현(`MemberFacadeAdapter`)은 `infrastructure/facade`에 둔다. 다른 모듈도 웹 클라이언트처럼 이 모듈을 **사용하는 쪽**이므로, 파사드 구현은 컨트롤러와 같은 인바운드 어댑터다. 컨트롤러처럼 인바운드 포트(유스케이스)를 호출한다.
+
+```
+HTTP 요청   ─▶ web/MemberController        ─┐
+                                              ├─▶ port/in (유스케이스) ─▶ service ─▶ domain
+order 모듈  ─▶ facade/MemberFacadeAdapter  ─┘
+               (api/MemberFacade의 구현)
+```
 
 ### 의존 규칙
 

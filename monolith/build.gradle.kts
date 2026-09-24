@@ -49,6 +49,8 @@ dependencyManagement {
 kotlin {
     compilerOptions {
         freeCompilerArgs.addAll("-Xjsr305=strict", "-Xannotation-default-target=param-property")
+        // ID 생성에 kotlin.uuid.Uuid.generateV7()을 쓴다 (ADR-0007)
+        optIn.add("kotlin.uuid.ExperimentalUuidApi")
     }
 }
 
