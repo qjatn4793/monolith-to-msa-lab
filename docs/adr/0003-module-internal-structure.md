@@ -57,6 +57,7 @@ infrastructure ──▶ application ──▶ domain
 | `application`은 `infrastructure`를 모른다 | `LayerDependencyTests` |
 | `api`는 `domain`, `application`, `infrastructure`를 노출하지 않는다 | `LayerDependencyTests` |
 | `api`는 `api` 자신, `infrastructure/adapter`, `infrastructure/facade`에서만 참조한다 | `LayerDependencyTests` (P1 이후 추가) |
+| 다른 모듈은 `api`만 import 하고, `api`는 내부 계층을 import 하지 않는다 (값 클래스 대응) | `SourceImportRulesTests` (P1 이후 추가) |
 
 ### 검증 규칙이 실제로 동작하는지 확인
 
@@ -89,6 +90,17 @@ Field <...order.application.service.Violation.memberFacade> has type <...MemberF
 ```
 
 같은 위반 코드에 대해 `ModularityTests`는 통과했다. order는 `member :: api`에 의존해도 되기 때문이다. 두 테스트가 서로 다른 것을 지킨다.
+
+### 바이트코드 분석의 빈틈: Kotlin 값 클래스
+
+모든 규칙에 위반 코드를 넣어 확인하던 중, 값 클래스를 통한 의존은 **Modulith와 ArchUnit 모두 잡지 못한다**는 것을 확인했다. `value class MemberId(val value: UUID)`를 필드 타입으로 쓰면 바이트코드에는 `UUID`만 남는다.
+
+| order 어댑터가 필드로 가진 member 내부 타입 | ModularityTests | SourceImportRulesTests |
+|---|---|---|
+| `member.domain.Member` (일반 클래스) | 실패 | 실패 |
+| `member.domain.MemberId` (값 클래스) | **통과** | 실패 |
+
+소스의 import 문을 검사하는 `SourceImportRulesTests`를 추가해 메웠다. import 없이 전체 이름을 직접 쓰는 경우는 잡지 못한다. 더 정확한 검사가 필요해지면 Konsist처럼 Kotlin 소스를 구문 분석하는 도구를 검토한다.
 
 ## 결과
 
