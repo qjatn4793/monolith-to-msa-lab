@@ -13,7 +13,7 @@
 |---|---|---|---|---|
 | #0 | 리서치: 회사들은 모놀리식을 어떻게 설계하고 떼어내나 | P0 | ✅ | [초안](docs/posts/00-how-companies-design-monoliths.md) |
 | #1 | 도메인 분석과 바운디드 컨텍스트 | P0 | ✅ | [초안](docs/posts/01-domain-and-bounded-contexts.md) |
-| #2 | DDD 애그리거트와 헥사고날 구조 | P1 | ✅ | |
+| #2 | DDD 애그리거트와 헥사고날 구조 | P1 | ✅ | [초안](docs/posts/02-aggregates-and-hexagonal.md) |
 | #3 | Spring Modulith로 모듈 경계를 테스트로 강제하기 | P0, P1 | ✅ | |
 | #4 | 모듈 간 협력: 도메인 이벤트, 결제, 트랜잭션 밖 외부 호출 | P2 | | |
 | #5 | 운영 가능한 서비스의 조건 (보안, 관측성, CI/CD) | P3 | | |
@@ -95,7 +95,7 @@ monolith-to-msa-lab/
 | | GET | `/orders/{id}`, `/orders?memberId=&page=&size=` | 조회, 회원별 목록 |
 | | POST | `/orders/{id}/cancel` | 취소 (재고 예약 해제) |
 
-에러는 모두 [RFC 9457 ProblemDetail](https://www.rfc-editor.org/rfc/rfc9457) 형식이고, `code` 필드로 원인을 구분한다.
+에러는 모두 [RFC 9457 ProblemDetail](https://datatracker.ietf.org/doc/html/rfc9457) 형식이고, `code` 필드로 원인을 구분한다.
 
 ```json
 { "status": 409, "code": "OUT_OF_STOCK", "detail": "재고가 부족한 상품이 있습니다: [...]", ... }
