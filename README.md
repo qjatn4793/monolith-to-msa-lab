@@ -14,7 +14,7 @@
 | #0 | 리서치: 회사들은 모놀리식을 어떻게 설계하고 떼어내나 | P0 | ✅ | [초안](docs/posts/00-how-companies-design-monoliths.md) |
 | #1 | 도메인 분석과 바운디드 컨텍스트 | P0 | ✅ | [초안](docs/posts/01-domain-and-bounded-contexts.md) |
 | #2 | DDD 애그리거트와 헥사고날 구조 | P1 | ✅ | [초안](docs/posts/02-aggregates-and-hexagonal.md) |
-| #3 | Spring Modulith로 모듈 경계를 테스트로 강제하기 | P0, P1 | ✅ | |
+| #3 | Spring Modulith로 모듈 경계를 테스트로 강제하기 | P0, P1 | ✅ | [초안](docs/posts/03-enforcing-boundaries-with-tests.md) |
 | #4 | 모듈 간 협력: 도메인 이벤트, 결제, 트랜잭션 밖 외부 호출 | P2 | | |
 | #5 | 운영 가능한 서비스의 조건 (보안, 관측성, CI/CD) | P3 | | |
 | #6~7 | 성능 기준선과 튜닝 | P4 | | |
@@ -76,6 +76,7 @@ monolith-to-msa-lab/
 
 - `ModularityTests`: 모듈 간 의존 방향, 공개 계약(`api`) 외 참조 금지
 - `LayerDependencyTests`: 모듈 안쪽 레이어의 의존 방향, 도메인의 순수성, 모듈 간 호출은 `infrastructure/adapter`와 `facade`에서만
+- `SourceImportRulesTests`: import 문 기준 모듈 경계. Kotlin 값 클래스는 바이트코드에서 지워져 위 두 테스트가 보지 못하는 것을 보완
 
 ## API
 
