@@ -10,6 +10,9 @@ class OrderNotFoundException(id: OrderId) :
 class OrderNotCancellableException(id: OrderId, status: OrderStatus) :
     BusinessException(ErrorType.CONFLICT, "ORDER_NOT_CANCELLABLE", "취소할 수 없는 주문입니다: $id ($status)")
 
+class OrderNotConfirmableException(id: OrderId, status: OrderStatus) :
+    BusinessException(ErrorType.CONFLICT, "ORDER_NOT_CONFIRMABLE", "확정할 수 없는 주문입니다: $id ($status)")
+
 class OrdererNotFoundException(memberId: UUID) :
     BusinessException(ErrorType.NOT_FOUND, "ORDERER_NOT_FOUND", "주문자를 찾을 수 없습니다: $memberId")
 

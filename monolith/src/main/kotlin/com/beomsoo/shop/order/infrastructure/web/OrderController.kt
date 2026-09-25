@@ -7,7 +7,6 @@ import com.beomsoo.shop.order.application.port.`in`.PlaceOrderUseCase
 import com.beomsoo.shop.order.domain.OrderId
 import com.beomsoo.shop.shared.application.PageQuery
 import com.beomsoo.shop.shared.application.PageResult
-import com.beomsoo.shop.shared.infrastructure.web.IdResponse
 import jakarta.validation.Valid
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.GetMapping
@@ -29,14 +28,16 @@ class OrderController(
 ) {
 
     @PostMapping
-    fun place(@Valid @RequestBody request: PlaceOrderRequest): ResponseEntity<IdResponse> {
-        val id = placeOrderUseCase.place(
+    fun place(@Valid @RequestBody request: PlaceOrderRequest): ResponseEntity<PlaceOrderResponse> {
+        val result = placeOrderUseCase.place(
             PlaceOrderCommand(
                 memberId = request.memberId,
                 items = request.items.map { PlaceOrderCommand.Item(it.productId, it.quantity) },
             ),
         )
-        return ResponseEntity.created(URI.create("/orders/$id")).body(IdResponse(id.value))
+        // 결제가 실패해도 주문 자체는 CANCELLED 상태로 만들어졌으므로 201을 돌려주고, 결과는 status로 알린다.
+        return ResponseEntity.created(URI.create("/orders/${result.orderId}"))
+            .body(PlaceOrderResponse(result.orderId.value, result.status.name))
     }
 
     @GetMapping("/{id}")

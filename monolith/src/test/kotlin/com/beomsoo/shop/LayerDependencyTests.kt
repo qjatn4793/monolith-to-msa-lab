@@ -49,19 +49,20 @@ class LayerDependencyTests {
     }
 
     /**
-     * 모듈 간 동기 호출이 일어나는 곳을 두 군데로 제한한다.
-     * - infrastructure.adapter: 다른 모듈의 api를 호출하는 아웃바운드 어댑터
-     * - infrastructure.facade: 자기 모듈의 api를 구현하는 인바운드 어댑터
+     * 모듈 간 협력이 일어나는 곳을 세 군데로 제한한다.
+     * - infrastructure.adapter: 다른 모듈의 api를 호출하거나 자기 모듈의 이벤트를 발행하는 아웃바운드 어댑터
+     * - infrastructure.facade: 자기 모듈의 api를 구현하는 인바운드 어댑터 (동기 호출)
+     * - infrastructure.listener: 다른 모듈의 이벤트를 받는 인바운드 어댑터 (비동기)
      * 서비스, 도메인, 컨트롤러가 다른 모듈의 api를 직접 부르면 실패한다.
      * 그래서 모듈을 서비스로 떼어낼 때 바꿔야 할 곳이 adapter 패키지로 좁혀진다.
      */
     @Test
-    fun `모듈의 공개 계약(api)은 adapter와 facade에서만 참조한다`() {
+    fun `모듈의 공개 계약(api)은 adapter, facade, listener에서만 참조한다`() {
         classes().that().resideInAPackage("com.beomsoo.shop.*.api..")
             // onlyBeAccessed()는 메서드 호출, 필드 접근 같은 "접근"만 본다. 필드 타입이나 생성자 파라미터로
             // 선언만 한 경우는 잡지 못해서, 모든 종류의 의존을 보는 onlyHaveDependentClassesThat()을 쓴다.
             .should().onlyHaveDependentClassesThat()
-            .resideInAnyPackage("..api..", "..infrastructure.adapter..", "..infrastructure.facade..")
+            .resideInAnyPackage("..api..", "..infrastructure.adapter..", "..infrastructure.facade..", "..infrastructure.listener..")
             .check(classes)
     }
 

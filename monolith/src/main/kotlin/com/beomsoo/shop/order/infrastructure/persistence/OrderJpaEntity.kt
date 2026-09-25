@@ -1,5 +1,6 @@
 package com.beomsoo.shop.order.infrastructure.persistence
 
+import com.beomsoo.shop.order.domain.CancelReason
 import com.beomsoo.shop.order.domain.Order
 import com.beomsoo.shop.order.domain.OrderId
 import com.beomsoo.shop.order.domain.OrderLine
@@ -27,6 +28,8 @@ class OrderJpaEntity(
     val memberId: UUID,
     @Enumerated(EnumType.STRING)
     var status: OrderStatus,
+    @Enumerated(EnumType.STRING)
+    var cancelReason: CancelReason?,
     /** 목록 조회에서 주문 상품을 읽지 않고도 합계를 보여주기 위해 저장해 둔다. */
     val totalAmount: Long,
     val orderedAt: Instant,
@@ -44,6 +47,7 @@ class OrderJpaEntity(
 
     fun update(order: Order) {
         status = order.status
+        cancelReason = order.cancelReason
     }
 
     fun toDomain(): Order = Order(
@@ -51,6 +55,7 @@ class OrderJpaEntity(
         memberId = memberId,
         lines = lines.map { it.toDomain() },
         status = status,
+        cancelReason = cancelReason,
         orderedAt = orderedAt,
     )
 
@@ -59,6 +64,7 @@ class OrderJpaEntity(
             id = order.id.value,
             memberId = order.memberId,
             status = order.status,
+            cancelReason = order.cancelReason,
             totalAmount = order.totalAmount.amount,
             orderedAt = order.orderedAt,
             lines = order.lines.map(OrderLineEmbeddable::from).toMutableList(),

@@ -41,11 +41,23 @@ class OrderTest {
     }
 
     @Test
-    fun `결제 대기 중인 주문만 취소할 수 있다`() {
-        val order = Order.place(memberId, listOf(line(1000, 1)), now)
-        order.cancel()
+    fun `결제 대기 중인 주문을 확정하면 확정 이벤트를 돌려준다`() {
+        val order = Order.place(memberId, listOf(line(1000, 2)), now)
 
-        assertEquals(OrderStatus.CANCELLED, order.status)
-        assertThrows<OrderNotCancellableException> { order.cancel() }
+        val event = order.confirm(now)
+
+        assertEquals(OrderStatus.CONFIRMED, order.status)
+        assertEquals(order.id, event.orderId)
+        assertEquals(Money(2000), event.totalAmount)
+    }
+
+    @Test
+    fun `결제 대기 중인 주문만 확정하거나 취소할 수 있다`() {
+        val confirmed = Order.place(memberId, listOf(line(1000, 1)), now).apply { confirm(now) }
+        val cancelled = Order.place(memberId, listOf(line(1000, 1)), now).apply { cancel(CancelReason.REQUESTED, now) }
+
+        assertThrows<OrderNotCancellableException> { confirmed.cancel(CancelReason.REQUESTED, now) }
+        assertThrows<OrderNotConfirmableException> { cancelled.confirm(now) }
+        assertEquals(CancelReason.REQUESTED, cancelled.cancelReason)
     }
 }

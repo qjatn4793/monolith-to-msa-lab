@@ -10,7 +10,7 @@ import java.util.UUID
  * 다른 모듈의 ID는 항상 UUID로만 들고 있는다 (ADR-0004).
  *
  *   available : 지금 주문할 수 있는 수량
- *   reserved  : 주문이 잡아둔 수량. 주문이 취소되면 available로 돌아간다
+ *   reserved  : 주문이 잡아둔 수량. 결제가 끝나면 빠지고(confirm), 주문이 취소되면 available로 돌아간다(release)
  */
 class Stock(
     val productId: UUID,
@@ -43,10 +43,17 @@ class Stock(
         reserved += quantity
     }
 
+    /** 잡아둔 재고를 확정 차감한다 (결제 완료). 예약 수량에서 빠지고 가용 수량으로 돌아가지 않는다. */
+    fun confirm(quantity: Int) {
+        validateQuantity(quantity)
+        if (quantity > reserved) throw ReservedStockExceededException(productId, quantity, reserved)
+        reserved -= quantity
+    }
+
     /** 잡아둔 재고를 되돌린다 (주문 취소) */
     fun release(quantity: Int) {
         validateQuantity(quantity)
-        if (quantity > reserved) throw InvalidStockReleaseException(productId, quantity, reserved)
+        if (quantity > reserved) throw ReservedStockExceededException(productId, quantity, reserved)
         reserved -= quantity
         available += quantity
     }

@@ -20,6 +20,8 @@ class InventoryAdapter(
             is ReserveStockResult.Rejected -> StockReservation.OutOfStock(result.insufficientProductIds)
         }
 
+    override fun confirm(lines: List<OrderLine>) = inventoryFacade.confirm(lines.toStockItems())
+
     override fun release(lines: List<OrderLine>) = inventoryFacade.release(lines.toStockItems())
 
     private fun List<OrderLine>.toStockItems() = map { StockItem(it.productId, it.quantity) }

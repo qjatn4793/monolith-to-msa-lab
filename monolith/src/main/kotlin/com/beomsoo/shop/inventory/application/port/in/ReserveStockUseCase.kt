@@ -13,6 +13,10 @@ interface ReserveStockUseCase {
      */
     fun reserve(items: List<StockQuantity>): ReservationResult
 
+    /** 예약을 확정 차감한다 (결제 완료) */
+    fun confirm(items: List<StockQuantity>)
+
+    /** 예약을 해제한다 (주문 취소) */
     fun release(items: List<StockQuantity>)
 }
 

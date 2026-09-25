@@ -1,5 +1,7 @@
 package com.beomsoo.shop.order.domain
 
+import com.beomsoo.shop.order.domain.event.OrderCancelled
+import com.beomsoo.shop.order.domain.event.OrderConfirmed
 import com.beomsoo.shop.shared.domain.InvalidInputException
 import com.beomsoo.shop.shared.domain.Money
 import com.beomsoo.shop.shared.domain.sum
@@ -11,12 +13,17 @@ import java.util.UUID
  *
  * 주문자는 member 모듈의 회원이지만 Member 객체가 아니라 ID(UUID)로만 참조한다 (ADR-0004).
  * 그래서 주문을 불러올 때 회원 테이블을 JOIN 할 일이 없다.
+ *
+ * 상태 흐름:
+ *   PENDING ──(결제 승인)──▶ CONFIRMED
+ *      └────(결제 실패, 취소)──▶ CANCELLED
  */
 class Order(
     val id: OrderId,
     val memberId: UUID,
     lines: List<OrderLine>,
     status: OrderStatus,
+    cancelReason: CancelReason?,
     val orderedAt: Instant,
 ) {
     val lines: List<OrderLine> = validateLines(lines)
@@ -24,18 +31,30 @@ class Order(
     var status: OrderStatus = status
         private set
 
+    var cancelReason: CancelReason? = cancelReason
+        private set
+
     val totalAmount: Money get() = lines.map { it.amount }.sum()
 
-    fun cancel() {
+    /** 결제가 끝나 주문을 확정한다. 상태를 바꾸고, 무슨 일이 일어났는지를 도메인 이벤트로 돌려준다. */
+    fun confirm(now: Instant): OrderConfirmed {
+        if (status != OrderStatus.PENDING) throw OrderNotConfirmableException(id, status)
+        status = OrderStatus.CONFIRMED
+        return OrderConfirmed(id, memberId, totalAmount, now)
+    }
+
+    fun cancel(reason: CancelReason, now: Instant): OrderCancelled {
         if (status != OrderStatus.PENDING) throw OrderNotCancellableException(id, status)
         status = OrderStatus.CANCELLED
+        cancelReason = reason
+        return OrderCancelled(id, memberId, reason, now)
     }
 
     companion object {
         private const val MAX_LINES = 50
 
         fun place(memberId: UUID, lines: List<OrderLine>, now: Instant): Order =
-            Order(OrderId.new(), memberId, lines, OrderStatus.PENDING, now)
+            Order(OrderId.new(), memberId, lines, OrderStatus.PENDING, null, now)
 
         private fun validateLines(lines: List<OrderLine>): List<OrderLine> {
             if (lines.isEmpty()) throw InvalidInputException("주문 상품이 없습니다.")
@@ -48,11 +67,18 @@ class Order(
     }
 }
 
-/**
- * P1에서는 PENDING(결제 대기)과 CANCELLED만 있다.
- * 결제를 붙이는 P2에서 CONFIRMED 등이 추가된다 (ADR-0006).
- */
 enum class OrderStatus {
+    /** 재고를 예약했고 결제를 기다린다 */
     PENDING,
+
+    /** 결제가 끝났다 */
+    CONFIRMED,
+
+    /** 결제 실패나 요청으로 취소됐다. 예약한 재고는 해제된다 */
     CANCELLED,
+}
+
+enum class CancelReason {
+    PAYMENT_FAILED,
+    REQUESTED,
 }

@@ -19,6 +19,23 @@ spring:
         # 두 트랜잭션이 같은 재고 행들을 서로 다른 순서로 갱신하다 교착 상태에 빠지는 것을 막는다.
         order_updates: true
 
+  modulith:
+    events:
+      # 재시작할 때 전달되지 않은 이벤트(EVENT_PUBLICATION의 미완료 행)를 다시 발행한다 (ADR-0011)
+      republish-outstanding-events-on-restart: true
+      jdbc:
+        schema-initialization:
+          # 반드시 명시해야 한다. 이 설정은 값이 없으면 켜진다(matchIfMissing = true).
+          # 켜져 있으면 Modulith가 Flyway 다음에 EVENT_PUBLICATION 테이블을 따로 만든다. 스키마는 Flyway만 관리한다.
+          enabled: false
+
+payment:
+  pg:
+    base-url: http://localhost:9090
+    connect-timeout: 1s
+    # PG 응답을 기다리는 최대 시간. 넘으면 결과를 모르는 채로 결제 실패로 처리한다 (ADR-0012)
+    read-timeout: 3s
+
 management:
   endpoints:
     web:

@@ -17,10 +17,17 @@ data class PlaceOrderRequest(
     )
 }
 
+data class PlaceOrderResponse(
+    val id: UUID,
+    /** CONFIRMED(결제 완료) 또는 CANCELLED(결제 실패) */
+    val status: String,
+)
+
 data class OrderResponse(
     val id: UUID,
     val memberId: UUID,
     val status: String,
+    val cancelReason: String?,
     val totalAmount: Long,
     val orderedAt: Instant,
     val lines: List<Line>,
@@ -38,6 +45,7 @@ data class OrderResponse(
             id = order.id.value,
             memberId = order.memberId,
             status = order.status.name,
+            cancelReason = order.cancelReason?.name,
             totalAmount = order.totalAmount.amount,
             orderedAt = order.orderedAt,
             lines = order.lines.map {

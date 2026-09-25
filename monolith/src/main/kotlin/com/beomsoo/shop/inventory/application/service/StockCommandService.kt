@@ -41,12 +41,16 @@ class StockCommandService(
         return ReservationResult.Reserved
     }
 
-    override fun release(items: List<StockQuantity>) {
+    override fun confirm(items: List<StockQuantity>) = changeReserved(items) { stock, quantity -> stock.confirm(quantity) }
+
+    override fun release(items: List<StockQuantity>) = changeReserved(items) { stock, quantity -> stock.release(quantity) }
+
+    private fun changeReserved(items: List<StockQuantity>, change: (Stock, Int) -> Unit) {
         val requested = merge(items)
         val stocks = stockRepository.findAllByProductIds(requested.keys).associateBy { it.productId }
         requested.forEach { (productId, quantity) ->
             val stock = stocks[productId] ?: throw StockNotFoundException(productId)
-            stock.release(quantity)
+            change(stock, quantity)
         }
         stockRepository.saveAll(stocks.values)
     }

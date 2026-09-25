@@ -40,11 +40,22 @@ class StockTest {
     }
 
     @Test
+    fun `확정하면 예약 재고에서 빠지고 가용 재고로 돌아가지 않는다`() {
+        val stock = stock(10)
+        stock.reserve(3)
+        stock.confirm(3)
+
+        assertEquals(7, stock.available)
+        assertEquals(0, stock.reserved)
+        assertThrows<ReservedStockExceededException> { stock.confirm(1) }
+    }
+
+    @Test
     fun `예약한 것보다 많이 해제할 수 없다`() {
         val stock = stock(10)
         stock.reserve(3)
 
-        assertThrows<InvalidStockReleaseException> { stock.release(4) }
+        assertThrows<ReservedStockExceededException> { stock.release(4) }
     }
 
     @Test

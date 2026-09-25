@@ -3,11 +3,15 @@ package com.beomsoo.shop.order.application
 import com.beomsoo.shop.order.application.port.`in`.PlaceOrderCommand
 import com.beomsoo.shop.order.application.port.out.LoadOrdererPort
 import com.beomsoo.shop.order.application.port.out.LoadProductPort
+import com.beomsoo.shop.order.application.port.out.OrderEventPublisher
 import com.beomsoo.shop.order.application.port.out.OrderableProduct
 import com.beomsoo.shop.order.application.port.out.Orderer
+import com.beomsoo.shop.order.application.port.out.PaymentResult
+import com.beomsoo.shop.order.application.port.out.RequestPaymentPort
 import com.beomsoo.shop.order.application.port.out.StockPort
 import com.beomsoo.shop.order.application.port.out.StockReservation
 import com.beomsoo.shop.order.application.service.OrderCommandService
+import com.beomsoo.shop.order.domain.CancelReason
 import com.beomsoo.shop.order.domain.InactiveOrdererException
 import com.beomsoo.shop.order.domain.Order
 import com.beomsoo.shop.order.domain.OrderId
@@ -17,19 +21,24 @@ import com.beomsoo.shop.order.domain.OrderStatus
 import com.beomsoo.shop.order.domain.OrdererNotFoundException
 import com.beomsoo.shop.order.domain.OutOfStockException
 import com.beomsoo.shop.order.domain.ProductNotOrderableException
+import com.beomsoo.shop.order.domain.event.OrderCancelled
+import com.beomsoo.shop.order.domain.event.OrderConfirmed
+import com.beomsoo.shop.order.domain.event.OrderEvent
 import com.beomsoo.shop.shared.domain.Money
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
+import org.springframework.transaction.support.TransactionOperations
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.UUID
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
  * 주문 서비스는 포트에만 의존하므로, 포트를 가짜 구현으로 바꿔 끼우면 Spring도 DB도 다른 모듈도 없이 테스트할 수 있다.
- * member, catalog, inventory 모듈이 없어도 이 테스트는 돈다. 이것이 헥사고날 구조가 주는 테스트 용이성이다.
+ * 트랜잭션도 TransactionOperations.withoutTransaction()으로 대신한다.
  */
 class OrderCommandServiceTest {
 
@@ -41,18 +50,50 @@ class OrderCommandServiceTest {
     private val orderers = FakeOrdererPort(Orderer(memberId, active = true))
     private val products = FakeProductPort(keyboard, mouse)
     private val stock = FakeStockPort()
+    private val payment = FakePaymentPort()
+    private val events = FakeEventPublisher()
     private val clock = Clock.fixed(Instant.parse("2026-09-24T00:00:00Z"), ZoneOffset.UTC)
 
-    private val service = OrderCommandService(orders, orderers, products, stock, clock)
+    private val service = OrderCommandService(
+        orders, orderers, products, stock, payment, events, TransactionOperations.withoutTransaction(), clock,
+    )
 
     @Test
-    fun `주문 시점의 상품명과 가격을 스냅샷으로 저장하고 재고를 예약한다`() {
-        val id = service.place(command(keyboard.productId to 2, mouse.productId to 1))
+    fun `결제가 승인되면 주문을 확정하고 재고 차감을 확정하고 확정 이벤트를 발행한다`() {
+        val result = service.place(command(keyboard.productId to 2, mouse.productId to 1))
 
-        val order = orders.getValue(id)
+        val order = orders.getValue(result.orderId)
+        assertEquals(OrderStatus.CONFIRMED, result.status)
         assertEquals(Money(120_000), order.totalAmount)
         assertEquals(listOf("키보드", "마우스"), order.lines.map { it.productName })
         assertEquals(order.lines, stock.reserved)
+        assertEquals(order.lines, stock.confirmed)
+        assertEquals(listOf(Money(120_000)), payment.requestedAmounts)
+        assertIs<OrderConfirmed>(events.published.single())
+    }
+
+    @Test
+    fun `결제가 실패하면 주문을 취소하고 재고 예약을 해제하고 취소 이벤트를 발행한다`() {
+        payment.nextResult = PaymentResult.Failed("LIMIT_EXCEEDED")
+
+        val result = service.place(command(keyboard.productId to 1))
+
+        val order = orders.getValue(result.orderId)
+        assertEquals(OrderStatus.CANCELLED, result.status)
+        assertEquals(CancelReason.PAYMENT_FAILED, order.cancelReason)
+        assertEquals(order.lines, stock.released)
+        assertTrue(stock.confirmed.isEmpty())
+        assertEquals(CancelReason.PAYMENT_FAILED, assertIs<OrderCancelled>(events.published.single()).reason)
+    }
+
+    @Test
+    fun `재고가 부족하면 결제를 요청하지 않고 주문도 저장하지 않는다`() {
+        stock.outOfStock = listOf(keyboard.productId)
+
+        assertThrows<OutOfStockException> { service.place(command(keyboard.productId to 1)) }
+        assertTrue(orders.isEmpty())
+        assertTrue(payment.requestedAmounts.isEmpty())
+        assertTrue(events.published.isEmpty())
     }
 
     @Test
@@ -72,21 +113,15 @@ class OrderCommandServiceTest {
     }
 
     @Test
-    fun `재고가 부족하면 주문을 저장하지 않는다`() {
-        stock.outOfStock = listOf(keyboard.productId)
+    fun `결제 대기 중인 주문을 취소하면 재고 예약을 해제한다`() {
+        val order = Order.place(memberId, listOf(OrderLine(keyboard.productId, "키보드", Money(50_000), 1)), clock.instant())
+        orders.save(order)
 
-        assertThrows<OutOfStockException> { service.place(command(keyboard.productId to 1)) }
-        assertTrue(orders.isEmpty())
-    }
+        service.cancel(order.id)
 
-    @Test
-    fun `주문을 취소하면 예약한 재고를 해제한다`() {
-        val id = service.place(command(keyboard.productId to 2))
-
-        service.cancel(id)
-
-        assertEquals(OrderStatus.CANCELLED, orders.getValue(id).status)
-        assertEquals(orders.getValue(id).lines, stock.released)
+        assertEquals(OrderStatus.CANCELLED, orders.getValue(order.id).status)
+        assertEquals(CancelReason.REQUESTED, orders.getValue(order.id).cancelReason)
+        assertEquals(order.lines, stock.released)
     }
 
     private fun command(vararg items: Pair<UUID, Int>, memberId: UUID = this.memberId) =
@@ -115,6 +150,7 @@ class OrderCommandServiceTest {
     private class FakeStockPort : StockPort {
         var outOfStock: List<UUID> = emptyList()
         val reserved = mutableListOf<OrderLine>()
+        val confirmed = mutableListOf<OrderLine>()
         val released = mutableListOf<OrderLine>()
 
         override fun reserve(lines: List<OrderLine>): StockReservation {
@@ -124,6 +160,22 @@ class OrderCommandServiceTest {
             return StockReservation.Reserved
         }
 
+        override fun confirm(lines: List<OrderLine>) { confirmed += lines }
         override fun release(lines: List<OrderLine>) { released += lines }
+    }
+
+    private class FakePaymentPort : RequestPaymentPort {
+        var nextResult: PaymentResult = PaymentResult.Paid
+        val requestedAmounts = mutableListOf<Money>()
+
+        override fun pay(orderId: OrderId, amount: Money): PaymentResult {
+            requestedAmounts += amount
+            return nextResult
+        }
+    }
+
+    private class FakeEventPublisher : OrderEventPublisher {
+        val published = mutableListOf<OrderEvent>()
+        override fun publish(event: OrderEvent) { published += event }
     }
 }

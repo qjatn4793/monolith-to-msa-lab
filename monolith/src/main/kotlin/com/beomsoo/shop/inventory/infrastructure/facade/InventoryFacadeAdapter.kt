@@ -19,6 +19,8 @@ class InventoryFacadeAdapter(
             is ReservationResult.Rejected -> ReserveStockResult.Rejected(result.shortages.map { it.productId })
         }
 
+    override fun confirm(items: List<StockItem>) = reserveStockUseCase.confirm(items.toQuantities())
+
     override fun release(items: List<StockItem>) = reserveStockUseCase.release(items.toQuantities())
 
     private fun List<StockItem>.toQuantities() = map { StockQuantity(it.productId, it.quantity) }

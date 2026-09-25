@@ -14,9 +14,9 @@ class InsufficientStockException(productId: UUID, requested: Int, available: Int
         "재고가 부족합니다: product=$productId, requested=$requested, available=$available",
     )
 
-class InvalidStockReleaseException(productId: UUID, requested: Int, reserved: Int) :
+class ReservedStockExceededException(productId: UUID, requested: Int, reserved: Int) :
     BusinessException(
         ErrorType.CONFLICT,
-        "INVALID_STOCK_RELEASE",
-        "예약된 수량보다 많이 해제할 수 없습니다: product=$productId, requested=$requested, reserved=$reserved",
+        "RESERVED_STOCK_EXCEEDED",
+        "예약된 수량을 넘어서 확정하거나 해제할 수 없습니다: product=$productId, requested=$requested, reserved=$reserved",
     )

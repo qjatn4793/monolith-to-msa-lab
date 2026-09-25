@@ -20,12 +20,16 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
     implementation("org.springframework.boot:spring-boot-starter-flyway")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
+    // PG 호출용 RestClient.Builder 자동 설정. Boot 4부터 기능별 스타터로 분리됐다
+    implementation("org.springframework.boot:spring-boot-starter-restclient")
     implementation("org.flywaydb:flyway-mysql")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("tools.jackson.module:jackson-module-kotlin")
 
-    // 모듈 경계 정의와 검증. 이벤트 발행 저장소(starter-jpa)는 이벤트를 도입하는 P2에서 추가한다.
+    // 모듈 경계 정의와 검증
     implementation("org.springframework.modulith:spring-modulith-starter-core")
+    // 이벤트 발행 저장소(Event Publication Registry). 테이블은 Flyway로 만든다 (ADR-0011)
+    implementation("org.springframework.modulith:spring-modulith-starter-jdbc")
     runtimeOnly("org.springframework.modulith:spring-modulith-actuator")
 
     runtimeOnly("com.mysql:mysql-connector-j")
