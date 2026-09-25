@@ -1,0 +1,16 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: fake-pg
+
+fake-pg:
+  # 응답 지연 (밀리초)
+  delay-ms: 0
+  # 이 금액을 넘으면 한도 초과로 거절한다. 거절 시나리오를 결정적으로 재현하기 위한 규칙
+  approval-limit: 1000000
+  # 무작위 거절 비율 (0.0 ~ 1.0)
+  decline-rate: 0.0
+  # 무작위 500 응답 비율 (0.0 ~ 1.0)
+  error-rate: 0.0
