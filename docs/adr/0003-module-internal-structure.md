@@ -26,6 +26,7 @@
 └── infrastructure/  [내부] 어댑터
     ├── web/         인바운드: 컨트롤러
     ├── facade/      인바운드: 자기 모듈 api 인터페이스의 구현 (P1에서 추가)
+    ├── listener/    인바운드: 다른 모듈의 이벤트 구독 (P2에서 추가)
     ├── persistence/ 아웃바운드: JPA 엔티티, 매퍼, 저장소 구현
     └── adapter/     아웃바운드: 다른 모듈의 api 호출, 외부 시스템 클라이언트
 ```
@@ -56,7 +57,7 @@ infrastructure ──▶ application ──▶ domain
 | `domain`은 Spring, JPA에 의존하지 않는다 | `LayerDependencyTests` |
 | `application`은 `infrastructure`를 모른다 | `LayerDependencyTests` |
 | `api`는 `domain`, `application`, `infrastructure`를 노출하지 않는다 | `LayerDependencyTests` |
-| `api`는 `api` 자신, `infrastructure/adapter`, `infrastructure/facade`에서만 참조한다 | `LayerDependencyTests` (P1 이후 추가) |
+| `api`는 `api` 자신, `infrastructure/adapter`, `infrastructure/facade`, `infrastructure/listener`에서만 참조한다 | `LayerDependencyTests` (P1 이후 추가, P2에서 listener 추가) |
 | 다른 모듈은 `api`만 import 하고, `api`는 내부 계층을 import 하지 않는다 (값 클래스 대응) | `SourceImportRulesTests` (P1 이후 추가) |
 
 ### 검증 규칙이 실제로 동작하는지 확인
@@ -107,4 +108,5 @@ Field <...order.application.service.Violation.memberFacade> has type <...MemberF
 - 서비스를 떼어낼 때 `domain`과 `application`은 그대로 옮기고, `infrastructure/adapter`만 교체하면 되는 구조가 된다. 정말 그런지는 전환 단계에서 확인한다.
 - 비용: 기능 하나를 추가할 때 만드는 파일이 많다 (포트, 서비스, 어댑터, 매퍼). 단순 CRUD 모듈에서는 과해 보일 수 있다.
 - 다시 볼 것: 단순한 모듈(예: notification)에 이 구조를 전부 적용할지, 필요한 레이어만 둘지는 구현하면서 판단한다.
+- 패키지가 모듈별로 나뉘어 있어도 **Spring 빈 이름은 컨텍스트 전체에서 하나**다. P2에서 order와 notification에 둘 다 `MemberAdapter`를 두었다가 빈 이름(`memberAdapter`) 충돌로 애플리케이션이 뜨지 않았다. 어댑터 이름은 자기 모듈의 포트 기준으로 짓는다 (notification은 `RecipientAdapter`).
 - Kotlin에는 패키지 어노테이션이 없어서, 모듈과 공개 계약 선언은 `src/main/java`의 `package-info.java`에 둔다.

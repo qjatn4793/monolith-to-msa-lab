@@ -1,5 +1,8 @@
 # P1 코드 따라가기: 주문 요청 하나가 거치는 길
 
+> 이 문서는 **P1 시점**의 코드를 설명한다. P2에서 결제가 붙으면서 주문 흐름이 `[TX1] 주문 생성 → 결제(트랜잭션 밖) → [TX2] 확정/취소`로 바뀌었다 ([ADR-0006](../adr/0006-external-calls-outside-transaction.md)).
+> P1 시점 코드는 `git checkout e4270cf`로 볼 수 있다.
+
 `POST /orders` 요청 하나를 따라가면서 헥사고날 구조의 각 계층이 무슨 일을 하는지 본다.
 경로는 전부 `monolith/src/main/kotlin/com/beomsoo/shop/` 기준이다.
 

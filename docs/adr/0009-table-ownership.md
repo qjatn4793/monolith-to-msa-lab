@@ -15,6 +15,9 @@ DB는 하나다(ADR-0001). 같은 DB 안에서는 어떤 코드든 어떤 테이
 | catalog | `product` | `db/migration/catalog/` |
 | inventory | `stock` | `db/migration/inventory/` |
 | order | `orders`, `order_line` | `db/migration/order/` |
+| payment | `payment` | `db/migration/payment/` |
+| notification | `notification` | `db/migration/notification/` |
+| (Spring Modulith) | `EVENT_PUBLICATION` | `db/migration/shared/` |
 
 - 모듈은 **자기 테이블만** 읽고 쓴다. 다른 모듈의 데이터가 필요하면 그 모듈의 `api`를 호출한다.
 - **모듈 경계를 넘는 FK는 걸지 않는다.** `orders.member_id`, `stock.product_id`는 다른 모듈의 ID지만 FK가 없다.

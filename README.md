@@ -15,7 +15,7 @@
 | #1 | 도메인 분석과 바운디드 컨텍스트 | P0 | ✅ | [초안](docs/posts/01-domain-and-bounded-contexts.md) |
 | #2 | DDD 애그리거트와 헥사고날 구조 | P1 | ✅ | [초안](docs/posts/02-aggregates-and-hexagonal.md) |
 | #3 | Spring Modulith로 모듈 경계를 테스트로 강제하기 | P0, P1 | ✅ | [초안](docs/posts/03-enforcing-boundaries-with-tests.md) |
-| #4 | 모듈 간 협력: 도메인 이벤트, 결제, 트랜잭션 밖 외부 호출 | P2 | | |
+| #4 | 모듈 간 협력: 도메인 이벤트, 결제, 트랜잭션 밖 외부 호출 | P2 | ✅ | |
 | #5 | 운영 가능한 서비스의 조건 (보안, 관측성, CI/CD) | P3 | | |
 | #6~7 | 성능 기준선과 튜닝 | P4 | | |
 | #8 | 무엇부터 떼어낼까: 추출 순서 결정 | P5 | | |
@@ -35,6 +35,8 @@
 | 프레임워크 | Spring Boot 4.1 |
 | 모듈 경계 | Spring Modulith 2.1, ArchUnit |
 | DB | MySQL 8.4, Flyway, Spring Data JPA |
+| 모듈 간 이벤트 | Spring Modulith 이벤트 발행 저장소 (JDBC) |
+| 외부 PG | `fake-pg` 모듈 (지연, 거절률, 오류율을 조절하는 가짜 HTTP 서버) |
 | 테스트 | JUnit 5, Testcontainers |
 | 로컬 인프라 | docker compose |
 
@@ -45,6 +47,7 @@
 ```
 monolith-to-msa-lab/
 ├── monolith/                          모듈러 모놀리식
+├── fake-pg/                           가짜 PG 서버 (포트 9090)
 │   └── src/main/
 │       ├── java/com/beomsoo/shop/     모듈 선언 (package-info.java)
 │       └── kotlin/com/beomsoo/shop/
@@ -92,9 +95,11 @@ monolith-to-msa-lab/
 | | POST | `/products/{id}/stop-selling`, `/resume-selling` | 판매 중지, 재개 |
 | inventory | POST | `/stocks/{productId}/receive` | 입고 |
 | | GET | `/stocks/{productId}` | 재고 조회 |
-| order | POST | `/orders` | 주문 (주문자 확인 → 상품 스냅샷 → 재고 예약) |
+| order | POST | `/orders` | 주문 → 결제 → 확정(`CONFIRMED`) 또는 취소(`CANCELLED`) |
 | | GET | `/orders/{id}`, `/orders?memberId=&page=&size=` | 조회, 회원별 목록 |
-| | POST | `/orders/{id}/cancel` | 취소 (재고 예약 해제) |
+| | POST | `/orders/{id}/cancel` | 결제 대기(`PENDING`) 주문 취소 |
+| payment | GET | `/payments/{id}`, `/payments?orderId=` | 결제 조회 |
+| notification | GET | `/notifications?memberId=&page=&size=` | 보낸 알림 조회 |
 
 에러는 모두 [RFC 9457 ProblemDetail](https://datatracker.ietf.org/doc/html/rfc9457) 형식이고, `code` 필드로 원인을 구분한다.
 
@@ -106,16 +111,25 @@ monolith-to-msa-lab/
 
 ```bash
 docker compose up -d                 # MySQL
-./gradlew :monolith:bootRun          # 애플리케이션
+./gradlew :fake-pg:bootRun           # 가짜 PG (포트 9090)
+./gradlew :monolith:bootRun          # 애플리케이션 (포트 8080)
 
 curl localhost:8080/actuator/health
 curl localhost:8080/actuator/modulith   # 모듈 구조와 허용 의존
 ```
 
-테스트는 Testcontainers로 MySQL을 직접 띄우므로 Docker만 실행 중이면 된다.
+가짜 PG는 100만 원을 넘는 결제를 거절한다. 실행 중에 동작을 바꿀 수 있다.
 
 ```bash
-./gradlew :monolith:test
+# 응답을 5초 늦춘다 (주문 서비스의 PG 읽기 타임아웃은 3초)
+curl -X PUT localhost:9090/admin/behavior -H 'Content-Type: application/json' \
+  -d '{"delayMs": 5000, "approvalLimit": 1000000, "declineRate": 0.0, "errorRate": 0.0}'
+```
+
+테스트는 Testcontainers로 MySQL을 직접 띄우므로 Docker만 실행 중이면 된다. PG와 알림 발송은 테스트용 가짜로 바꿔 끼운다.
+
+```bash
+./gradlew test
 ```
 
 모듈 다이어그램은 테스트 실행 후 `monolith/build/spring-modulith-docs/`에 생성된다.
